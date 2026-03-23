@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { complaintAPI, notificationAPI } from '../services/api';
-import { MdLogout, MdDashboard, MdDescription, MdNotifications, MdAssessment, MdShield, MdPerson, MdEmail, MdAccessTime, MdCheckCircle, MdPending, MdAutorenew, MdAdd, MdSend, MdDelete, MdHistory, MdFilterList } from 'react-icons/md';
+import { MdLogout, MdDashboard, MdDescription, MdNotifications, MdAssessment, MdShield, MdPerson, MdEmail, MdAccessTime, MdCheckCircle, MdPending, MdAutorenew, MdAdd, MdSend, MdDelete, MdHistory, MdFilterList, MdAssignment } from 'react-icons/md';
+import TicketDetailModal from '../components/TicketDetailModal';
 
 function AdminDashboard({ user, onLogout }) {
   const [complaints, setComplaints] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showNotificationForm, setShowNotificationForm] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [notificationData, setNotificationData] = useState({ title: '', message: '' });
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -65,7 +67,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const handleDeleteNotification = async (id) => {
     if (!window.confirm('Are you sure you want to delete this notification?')) return;
-    
+
     try {
       await notificationAPI.delete(id);
       setSuccess('Notification deleted successfully!');
@@ -73,6 +75,28 @@ function AdminDashboard({ user, onLogout }) {
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to delete notification');
+    }
+  };
+
+  const handleClaimTicket = async (ticketId) => {
+    try {
+      await complaintAPI.assignTicket(ticketId, user.id);
+      setSuccess('Ticket claimed successfully!');
+      fetchComplaints();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to claim ticket');
+    }
+  };
+
+  const handleUnassignTicket = async (ticketId) => {
+    try {
+      await complaintAPI.assignTicket(ticketId, null);
+      setSuccess('Ticket unassigned successfully!');
+      fetchComplaints();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to unassign ticket');
     }
   };
 
@@ -244,6 +268,7 @@ function AdminDashboard({ user, onLogout }) {
                             {complaint.status}
                           </span>
                           <h3 className="font-bold text-gray-800">{complaint.category}</h3>
+                          <span className="text-xs text-gray-500">#{complaint.ticketNumber}</span>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                           <span className="flex items-center gap-1">
@@ -255,14 +280,33 @@ function AdminDashboard({ user, onLogout }) {
                             Email: {complaint.studentId?.email || 'N/A'}
                           </span>
                         </div>
+                        {complaint.assignedTo && (
+                          <div className="flex items-center gap-2 mb-2 text-sm">
+                            <MdAssignment className="text-blue-600" />
+                            <span className="text-blue-700 font-medium">
+                              Assigned to: {complaint.assignedTo.name}
+                            </span>
+                          </div>
+                        )}
                         <p className="text-gray-700 mb-2">{complaint.description}</p>
                         <p className="text-xs text-gray-500 flex items-center gap-1">
                           <MdAccessTime />
                           Submitted: {new Date(complaint.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
-                      <div className="ml-4">
-                        <p className="text-xs text-gray-600 mb-2 font-medium">UPDATE STATUS</p>
+                      <div className="ml-4 flex flex-col gap-2">
+                        <button onClick={() => setSelectedTicket(complaint)} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+                          View Ticket
+                        </button>
+                        {!complaint.assignedTo ? (
+                          <button onClick={() => handleClaimTicket(complaint._id)} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                            Claim
+                          </button>
+                        ) : complaint.assignedTo._id === user.id ? (
+                          <button onClick={() => handleUnassignTicket(complaint._id)} className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition text-sm">
+                            Unassign
+                          </button>
+                        ) : null}
                         <select value={complaint.status} onChange={(e) => handleStatusUpdate(complaint._id, e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white">
                           <option value="Pending">Pending</option>
                           <option value="In Progress">In Progress</option>
@@ -308,6 +352,7 @@ function AdminDashboard({ user, onLogout }) {
                             {complaint.status}
                           </span>
                           <h3 className="font-bold text-gray-800">{complaint.category}</h3>
+                          <span className="text-xs text-gray-500">#{complaint.ticketNumber}</span>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                           <span className="flex items-center gap-1">
@@ -319,22 +364,38 @@ function AdminDashboard({ user, onLogout }) {
                             Email: {complaint.studentId?.email || 'N/A'}
                           </span>
                         </div>
+                        {complaint.assignedTo && (
+                          <div className="flex items-center gap-2 mb-2 text-sm">
+                            <MdAssignment className="text-blue-600" />
+                            <span className="text-blue-700 font-medium">
+                              Assigned to: {complaint.assignedTo.name}
+                            </span>
+                          </div>
+                        )}
                         <p className="text-gray-700 mb-2">{complaint.description}</p>
                         <p className="text-xs text-gray-500 flex items-center gap-1">
                           <MdAccessTime />
                           Submitted: {new Date(complaint.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
-                      <div className="ml-4">
-                        <p className="text-xs text-gray-600 mb-2 font-medium">UPDATE STATUS</p>
+                      <div className="ml-4 flex flex-col gap-2">
+                        <button onClick={() => setSelectedTicket(complaint)} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+                          View Ticket
+                        </button>
+                        {!complaint.assignedTo ? (
+                          <button onClick={() => handleClaimTicket(complaint._id)} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                            Claim
+                          </button>
+                        ) : complaint.assignedTo._id === user.id ? (
+                          <button onClick={() => handleUnassignTicket(complaint._id)} className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition text-sm">
+                            Unassign
+                          </button>
+                        ) : null}
                         <select value={complaint.status} onChange={(e) => handleStatusUpdate(complaint._id, e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white">
                           <option value="Pending">Pending</option>
                           <option value="In Progress">In Progress</option>
                           <option value="Resolved">Resolved</option>
                         </select>
-                        <button className="mt-2 text-indigo-600 hover:text-indigo-700 text-sm font-medium">
-                          View Details
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -428,6 +489,17 @@ function AdminDashboard({ user, onLogout }) {
           )}
         </div>
       </div>
+
+      {selectedTicket && (
+        <TicketDetailModal
+          ticket={selectedTicket}
+          onClose={() => setSelectedTicket(null)}
+          currentUser={user}
+          onUpdate={(updatedTicket) => {
+            setComplaints(complaints.map(c => c._id === updatedTicket._id ? updatedTicket : c));
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -22,13 +22,22 @@ export const authAPI = {
 export const complaintAPI = {
   create: (data) => api.post('/complaints', data),
   getAll: () => api.get('/complaints'),
+  getById: (id) => api.get(`/complaints/${id}`),
   updateStatus: (id, status) => api.put(`/complaints/${id}/status`, { status }),
+  assignTicket: (id, assignedTo) => api.put(`/complaints/${id}/assign`, { assignedTo }),
+  updatePriority: (id, priority) => api.put(`/complaints/${id}/priority`, { priority }),
 };
 
 export const notificationAPI = {
   create: (data) => api.post('/notifications', data),
   getAll: () => api.get('/notifications'),
   delete: (id) => api.delete(`/notifications/${id}`),
+};
+
+export const commentAPI = {
+  create: (data) => api.post('/comments', data),
+  getByComplaint: (complaintId) => api.get(`/comments/${complaintId}`),
+  delete: (id) => api.delete(`/comments/${id}`),
 };
 
 export default api;

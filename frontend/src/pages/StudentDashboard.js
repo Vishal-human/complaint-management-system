@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { complaintAPI, notificationAPI } from '../services/api';
 import { MdLogout, MdDashboard, MdDescription, MdAdd, MdPerson, MdNotifications, MdShield, MdAccessTime, MdCheckCircle, MdPending, MdAutorenew, MdClose, MdCategory, MdNotificationsActive, MdChevronRight } from 'react-icons/md';
+import TicketDetailModal from '../components/TicketDetailModal';
 
 function StudentDashboard({ user, onLogout }) {
   const [complaints, setComplaints] = useState([]);
@@ -8,6 +9,7 @@ function StudentDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showForm, setShowForm] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [formData, setFormData] = useState({ category: '', description: '' });
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -232,7 +234,7 @@ function StudentDashboard({ user, onLogout }) {
                 ) : (
                   <div className="space-y-4">
                     {complaints.map((complaint) => (
-                      <div key={complaint._id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition cursor-pointer group">
+                      <div key={complaint._id} onClick={() => setSelectedTicket(complaint)} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition cursor-pointer group">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
@@ -247,7 +249,7 @@ function StudentDashboard({ user, onLogout }) {
                                 <MdAccessTime />
                                 {new Date(complaint.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                               </span>
-                              <span>REF: {complaint._id?.slice(-6) || '000000'}</span>
+                              <span>Ticket: {complaint.ticketNumber || `#${complaint._id?.slice(-6)}`}</span>
                             </div>
                           </div>
                           <MdChevronRight className="text-gray-400 text-2xl group-hover:text-gray-600 transition" />
@@ -284,7 +286,7 @@ function StudentDashboard({ user, onLogout }) {
               ) : (
                 <div className="space-y-4">
                   {complaints.map((complaint) => (
-                    <div key={complaint._id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition cursor-pointer group">
+                    <div key={complaint._id} onClick={() => setSelectedTicket(complaint)} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition cursor-pointer group">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
@@ -299,7 +301,7 @@ function StudentDashboard({ user, onLogout }) {
                               <MdAccessTime />
                               {new Date(complaint.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </span>
-                            <span>REF: {complaint._id?.slice(-6) || '000000'}</span>
+                            <span>Ticket: {complaint.ticketNumber || `#${complaint._id?.slice(-6)}`}</span>
                           </div>
                         </div>
                         <MdChevronRight className="text-gray-400 text-2xl group-hover:text-gray-600 transition" />
@@ -405,6 +407,17 @@ function StudentDashboard({ user, onLogout }) {
           )}
         </div>
       </div>
+
+      {selectedTicket && (
+        <TicketDetailModal
+          ticket={selectedTicket}
+          onClose={() => setSelectedTicket(null)}
+          currentUser={user}
+          onUpdate={(updatedTicket) => {
+            setComplaints(complaints.map(c => c._id === updatedTicket._id ? updatedTicket : c));
+          }}
+        />
+      )}
     </div>
   );
 }

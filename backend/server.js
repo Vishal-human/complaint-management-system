@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth');
 const complaintRoutes = require('./routes/complaints');
 const userRoutes = require('./routes/users');
 const notificationRoutes = require('./routes/notifications');
+const commentRoutes = require('./routes/comments');
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/comments', commentRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Complaint Management System API' });

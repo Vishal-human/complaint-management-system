@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { notificationAPI } from '../services/api';
-import { MdLogout, MdPersonAdd, MdDelete, MdPerson, MdAdminPanelSettings, MdSchool, MdNotifications, MdAdd, MdSend, MdHistory, MdDashboard, MdPeopleAlt, MdSettings, MdShield } from 'react-icons/md';
+import { notificationAPI, complaintAPI } from '../services/api';
+import { MdLogout, MdPersonAdd, MdDelete, MdPerson, MdAdminPanelSettings, MdSchool, MdNotifications, MdAdd, MdSend, MdHistory, MdDashboard, MdPeopleAlt, MdSettings, MdShield, MdDescription, MdAssignment } from 'react-icons/md';
+import TicketDetailModal from '../components/TicketDetailModal';
 
 function SuperAdminDashboard({ user, onLogout }) {
   const [users, setUsers] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [complaints, setComplaints] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showForm, setShowForm] = useState(false);
   const [showNotificationForm, setShowNotificationForm] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'student' });
   const [notificationData, setNotificationData] = useState({ title: '', message: '' });
   const [error, setError] = useState('');
@@ -17,6 +20,7 @@ function SuperAdminDashboard({ user, onLogout }) {
   useEffect(() => {
     fetchUsers();
     fetchNotifications();
+    fetchComplaints();
   }, []);
 
   const fetchUsers = async () => {
@@ -37,6 +41,15 @@ function SuperAdminDashboard({ user, onLogout }) {
       setNotifications(data);
     } catch (err) {
       console.error('Error fetching notifications:', err);
+    }
+  };
+
+  const fetchComplaints = async () => {
+    try {
+      const { data } = await complaintAPI.getAll();
+      setComplaints(data);
+    } catch (err) {
+      console.error('Error fetching complaints:', err);
     }
   };
 
@@ -94,18 +107,29 @@ function SuperAdminDashboard({ user, onLogout }) {
 
   const handleDelete = async (userId) => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
-    
+
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`/api/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       setSuccess('User deleted successfully!');
       fetchUsers();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to delete user');
+    }
+  };
+
+  const handleAssignTicket = async (ticketId, adminId) => {
+    try {
+      await complaintAPI.assignTicket(ticketId, adminId);
+      setSuccess('Ticket assigned successfully!');
+      fetchComplaints();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to assign ticket');
     }
   };
 
@@ -146,6 +170,10 @@ function SuperAdminDashboard({ user, onLogout }) {
             <MdPeopleAlt className="text-xl" />
             <span className="font-medium">User Management</span>
           </button>
+          <button onClick={() => setActiveTab('tickets')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition ${activeTab === 'tickets' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>
+            <MdDescription className="text-xl" />
+            <span className="font-medium">Ticket Management</span>
+          </button>
           <button onClick={() => setActiveTab('notifications')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition ${activeTab === 'notifications' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>
             <MdNotifications className="text-xl" />
             <span className="font-medium">Notifications</span>
@@ -171,6 +199,7 @@ function SuperAdminDashboard({ user, onLogout }) {
               <h1 className="text-2xl font-bold text-gray-800">
                 {activeTab === 'dashboard' && 'Overview'}
                 {activeTab === 'users' && 'User Management'}
+                {activeTab === 'tickets' && 'Ticket Management'}
                 {activeTab === 'notifications' && 'Notifications'}
                 {activeTab === 'settings' && 'Settings'}
               </h1>
@@ -424,6 +453,73 @@ function SuperAdminDashboard({ user, onLogout }) {
             </div>
           )}
 
+          {activeTab === 'tickets' && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">Ticket Management</h2>
+                  <p className="text-sm text-gray-600">View and assign tickets to administrators.</p>
+                </div>
+              </div>
+              {complaints.length === 0 ? (
+                <div className="text-center py-12">
+                  <MdDescription className="text-gray-300 text-6xl mx-auto mb-4" />
+                  <p className="text-gray-500">No tickets submitted yet</p>
+                </div>
+              ) : (
+                complaints.map((complaint) => (
+                  <div key={complaint._id} className="border border-gray-200 rounded-lg p-4 mb-4 hover:bg-gray-50 transition">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase border ${
+                            complaint.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                            complaint.status === 'In Progress' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                            'bg-green-100 text-green-800 border-green-300'
+                          }`}>
+                            {complaint.status}
+                          </span>
+                          <h3 className="font-bold text-gray-800">{complaint.category}</h3>
+                          <span className="text-xs text-gray-500">#{complaint.ticketNumber}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                          <span className="flex items-center gap-1">
+                            <MdPerson className="text-gray-400" />
+                            Student: {complaint.studentId?.name || 'Unknown'}
+                          </span>
+                        </div>
+                        {complaint.assignedTo && (
+                          <div className="flex items-center gap-2 mb-2 text-sm">
+                            <MdAssignment className="text-blue-600" />
+                            <span className="text-blue-700 font-medium">
+                              Assigned to: {complaint.assignedTo.name} ({complaint.assignedTo.role})
+                            </span>
+                          </div>
+                        )}
+                        <p className="text-gray-700 mb-2">{complaint.description}</p>
+                      </div>
+                      <div className="ml-4 flex flex-col gap-2">
+                        <button onClick={() => setSelectedTicket(complaint)} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+                          View Ticket
+                        </button>
+                        <select
+                          value={complaint.assignedTo?._id || ''}
+                          onChange={(e) => handleAssignTicket(complaint._id, e.target.value || null)}
+                          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                        >
+                          <option value="">Unassigned</option>
+                          {users.filter(u => u.role === 'admin').map(admin => (
+                            <option key={admin._id} value={admin._id}>{admin.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
           {activeTab === 'settings' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-bold text-gray-800 mb-4">Settings</h2>
@@ -432,6 +528,17 @@ function SuperAdminDashboard({ user, onLogout }) {
           )}
         </div>
       </div>
+
+      {selectedTicket && (
+        <TicketDetailModal
+          ticket={selectedTicket}
+          onClose={() => setSelectedTicket(null)}
+          currentUser={user}
+          onUpdate={(updatedTicket) => {
+            setComplaints(complaints.map(c => c._id === updatedTicket._id ? updatedTicket : c));
+          }}
+        />
+      )}
     </div>
   );
 }
